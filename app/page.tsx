@@ -1,7 +1,3 @@
-"use client"
-
-import VideoPlayer from "../components/VideoPlayer"
-import Chat from "../components/Chat"
 
 export default function Home() {
   return (
