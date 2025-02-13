@@ -13,18 +13,20 @@ interface LiveCameraProps {
   roomData: Room
   messages: Message[]
 }
-const streamArr: Blob[] = []
 
 export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraProps) => {
-  console.log(roomData, "roomData")
   const [recording, setRecording] = useState(false)
   const { socket } = useSocket(SOCKET_IO_BACKEND_URL)
   const [showControls, setShowControls] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const [showModal, setShowModal] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isMuted, setIsMuted] = useState(true)
+  const [isMuted, setIsMuted] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null)
+  const gainNodeRef = useRef<GainNode | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
 
@@ -32,32 +34,49 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
     const startInput = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        streamRef.current = stream
+
         if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          // Initialize mute state
-          const audioTrack = stream.getAudioTracks()[0]
-          if (audioTrack) {
-            audioTrack.enabled = !isMuted
-          }
+          videoRef.current.srcObject = new MediaStream(stream.getVideoTracks())
+        }
+
+        // Set up audio context
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+        sourceNodeRef.current = audioContextRef.current.createMediaStreamSource(stream)
+        gainNodeRef.current = audioContextRef.current.createGain()
+        sourceNodeRef.current.connect(gainNodeRef.current)
+
+        // Don't connect to destination to avoid echo
+        // gainNodeRef.current.connect(audioContextRef.current.destination);
+
+        // Initial mute state
+        if (gainNodeRef.current) {
+          gainNodeRef.current.gain.setValueAtTime(isMuted ? 0 : 1, audioContextRef.current.currentTime)
         }
       } catch (err) {
         console.error("Error accessing media devices.", err)
       }
     }
     startInput()
-  }, [isMuted])
+
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close()
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop())
+      }
+    }
+  }, [isMuted]) // Added isMuted to dependencies
 
   const handleStartRecording = () => {
-    const video = document.getElementById("video") as HTMLVideoElement
-    const state = { media: video.srcObject as MediaStream }
+    if (streamRef.current) {
+      if (socket) {
+        socket.emit("joinRoom", roomId)
+      }
 
-    if (socket) {
-      socket.emit("joinRoom", roomId)
-    }
-
-    if (state.media) {
       if (!recording) {
-        mediaRecorderRef.current = new MediaRecorder(state.media, {
+        mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
           audioBitsPerSecond: 128000,
           videoBitsPerSecond: 2000000,
         })
@@ -85,19 +104,10 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
 
   const confirmStopRecording = () => {
     if (mediaRecorderRef.current) {
-      const state = { media: (document.getElementById("video") as HTMLVideoElement).srcObject as MediaStream }
-      state.media.getTracks().forEach((track) => {
-        track.stop()
-      })
-
       mediaRecorderRef.current.stop()
       mediaRecorderRef.current.onstop = () => {
         console.log("Recording stopped")
       }
-
-      mediaRecorderRef.current.removeEventListener("ondataavailable", () => {
-        console.log("Binary Stream recording stopped")
-      })
 
       socket.emit("stopRecording", {
         courseId: roomData.courseId,
@@ -128,13 +138,10 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
   }
 
   const toggleMute = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream
-      const audioTrack = stream.getAudioTracks()[0]
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled
-        setIsMuted(!audioTrack.enabled)
-      }
+    if (gainNodeRef.current && audioContextRef.current) {
+      const newMuteState = !isMuted
+      gainNodeRef.current.gain.setValueAtTime(newMuteState ? 0 : 1, audioContextRef.current.currentTime)
+      setIsMuted(newMuteState)
     }
   }
 
@@ -145,14 +152,13 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
-      <div className="md:aspect-video ">
+      <div className="aspect-video">
         <video
           ref={videoRef}
-          id="video"
           className="w-full h-full object-contain"
           autoPlay
           playsInline
-          muted={isMuted}
+          muted // Always muted to prevent echo
         ></video>
       </div>
 
