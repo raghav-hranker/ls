@@ -523,7 +523,7 @@ export default function VideoPlayer({ srcUrl, status, roomId, streamStatus, file
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                       <span>Playback Speed</span>
-                      <ChevronRight className="ml-auto h-4 w-4" />
+                      {/* <ChevronRight className="ml-auto h-4 w-4" /> */}
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent sideOffset={-5} alignOffset={-5}>
@@ -539,7 +539,7 @@ export default function VideoPlayer({ srcUrl, status, roomId, streamStatus, file
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                       <span>Quality</span>
-                      <ChevronRight className="ml-auto h-4 w-4" />
+                      {/* <ChevronRight className="ml-auto h-4 w-4" /> */}
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent sideOffset={-5} alignOffset={-5}>
