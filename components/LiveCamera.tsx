@@ -123,7 +123,7 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
             onMouseLeave={() => setShowControls(false)}
         >
 
-            <video id="video" className="w-full h-3/4 aspect-video " autoPlay playsInline muted ></video>
+            <video id="video" className="w-full h-3/4 md:aspect-video " autoPlay playsInline muted ></video>
 
             <button id="start" className="flex justify-center w-full" onClick={handleStartRecording}>
                 {recording ? "Stop Recording" : "Start Recording"}
