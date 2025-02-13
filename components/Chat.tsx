@@ -8,6 +8,8 @@ import { Paperclip } from "lucide-react"
 import type Message from "@/models/Message"
 import { SOCKET_IO_BACKEND_URL } from "@/config/BaseConstants"
 import useSocket from "@/lib/hooks/useSocket"
+import useLocalStorage from "@/lib/hooks/useLocalStorage"
+
 
 interface ChatMessage {
   roomId: string
@@ -21,17 +23,18 @@ interface ChatMessage {
   }
 }
 
+function generateUserId() {
+  return "user-" + Math.random().toString(36).substr(2, 9)
+}
+
 export default function Chat({ messages, roomId }: { messages: Message[]; roomId: string }) {
-  // console.log(messages, 'asdfsafdffsadfsaf')
-  // const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [chatList, setChatList] = useState<Message[]>(messages)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [userId, setUserId] = useState<string>()
+  const [userId] = useLocalStorage<string>("userId", generateUserId())
   const [sendMsg, setSendMsg] = useState<any>({})
   const [isUploading, setIsUploading] = useState(false)
 
-  // const [,setSocket] = useState<WebSocket | null>(null)
   const { socket } = useSocket(SOCKET_IO_BACKEND_URL)
 
   const handleUserMsgBroadcast = (data: any) => {
@@ -40,54 +43,33 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
   }
 
   useEffect(() => {
-    if (!userId) {
-      setUserId("user-" + new Date().valueOf())
-    }
     if (socket) {
-      // Join a room
-      socket.on("userMsgBroadcast", sendMessage)
+      socket.on("userMsgBroadcast", handleUserMsgBroadcast)
     }
-    return () => {
-      socket?.off("userMsgBroadcast", sendMessage)
-    }
-  }, [socket, userId]) // Added userId to dependencies
-
-  useEffect(() => {
-    // if (!userId) {
-    //   setUserId('user-' + new Date().valueOf());
-    // }
-    console.log("asfsafhere")
-    // if (socket) {
-    // Join a room
-    socket?.on("userMsgBroadcast", handleUserMsgBroadcast)
-    // }
     return () => {
       socket?.off("userMsgBroadcast", handleUserMsgBroadcast)
     }
-  }, [socket, sendMsg, handleUserMsgBroadcast]) // Added handleUserMsgBroadcast to dependencies
+  }, [socket])
 
   useEffect(() => {
     setChatList([...messages])
   }, [messages])
 
   const sendMessage = (message: ChatMessage) => {
-    // if (socket && socket.readyState === WebSocket.OPEN) {
-    console.log("essaf")
+    console.log("Sending message")
     socket.emit("userMsg", message)
-    // setChatList((prevMessages: any) => [...prevMessages, message])
-    // }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputMessage.trim()) {
-      console.log("message")
+      console.log("Submitting message")
       sendMessage({
         roomId: roomId,
         roomName: roomId,
         data: {
           message: inputMessage,
-          userId: "132",
+          userId: userId,
           timestamp: new Date().valueOf(),
           type: "text",
         },
@@ -105,16 +87,16 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
       reader.onload = (event) => {
         const content = event.target?.result as string
         const type = file.type.startsWith("image/") ? "image" : file.type === "application/pdf" ? "pdf" : "text"
-        const fileName = file.name 
+        const fileName = file.name
         sendMessage({
           roomId,
           roomName: roomId,
           data: {
             message: content,
-            userId: "123",
+            userId: userId,
             timestamp: new Date().valueOf(),
             type,
-            fileName, 
+            fileName,
           },
         })
         setIsUploading(false)
@@ -122,13 +104,14 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
       reader.readAsDataURL(file)
     }
   }
+
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-grow mb-4 p-4 border border-neutral-200 rounded-md dark:border-neutral-800">
         {chatList?.map((message, index) => (
-          <div key={index} className={`mb-2 ${message.sender === "user" ? "text-right" : "text-left"}`}>
+          <div key={index} className={`mb-2 ${message.userId === userId ? "text-right" : "text-left"}`}>
             <div
-              className={`inline-block p-2 rounded-lg ${message.sender === "user" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
+              className={`inline-block p-2 rounded-lg ${message.userId === userId ? "bg-blue-500 text-white" : "bg-gray-200"}`}
             >
               {message.type === "text" && <p>{message.message}</p>}
               {message.type === "image" && (
@@ -140,7 +123,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
               )}
               {message.type === "pdf" && (
                 <div>
-                  <p>{message?.fileName || "PDF file"}</p>
+                  <p>{message.fileName || "PDF file"}</p>
                   <iframe
                     src={`${message.message}#toolbar=0`}
                     className="w-full h-64 rounded-lg"
