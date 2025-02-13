@@ -129,7 +129,7 @@ const ClientPage = () => {
                             <LiveCamera roomId={roomId} classId={classId} roomData={roomData} messages={messages} />
                         </div>
                         <div className="w-full lg:w-1/4 p-4">
-                            <Chat messages={messages} />
+                            <Chat messages={messages} roomId={roomId} />
                         </div>
                     </>
                     :
@@ -138,7 +138,7 @@ const ClientPage = () => {
                             <VideoPlayer srcUrl={srcUrl} status={roomData?.status} roomId={roomId} streamStatus={streamUpdate} fileGenerated={fileGenerated} />
                         </div>
                         <div className="w-full lg:w-1/4 p-4">
-                            <Chat messages={messages} />
+                            <Chat messages={messages} roomId={roomId}/>
                         </div>
                     </>
             }

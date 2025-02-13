@@ -5,78 +5,94 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Paperclip } from "lucide-react"
-import Message from "@/models/Message"
+import type Message from "@/models/Message"
 import { SOCKET_IO_BACKEND_URL } from "@/config/BaseConstants"
 import useSocket from "@/lib/hooks/useSocket"
 
 interface ChatMessage {
-  type: "text" | "image" | "pdf"
-  content: string
-  sender: "user" | "other"
+  roomId: string
+  roomName: string
+  data: {
+    message: string
+    userId?: string
+    timestamp?: number
+    type?: "text" | "image" | "pdf"
+    fileName?: string
+  }
 }
 
-export default function Chat({ messages }: { messages: Message[] }) {
+export default function Chat({ messages, roomId }: { messages: Message[]; roomId: string }) {
+  // console.log(messages, 'asdfsafdffsadfsaf')
   // const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState("")
-  const [chatList, setChatList] = useState<any>(messages); 
+  const [chatList, setChatList] = useState<Message[]>(messages)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [userId, setUserId] = useState<string>()
+  const [sendMsg, setSendMsg] = useState<any>({})
+  const [isUploading, setIsUploading] = useState(false)
 
-  const [,setSocket] = useState<WebSocket | null>(null)
-  const {socket} = useSocket(SOCKET_IO_BACKEND_URL)
+  // const [,setSocket] = useState<WebSocket | null>(null)
+  const { socket } = useSocket(SOCKET_IO_BACKEND_URL)
+
+  const handleUserMsgBroadcast = (data: any) => {
+    console.log("Message received:", data)
+    setChatList((prev: any) => [...prev, data])
+  }
 
   useEffect(() => {
     if (!userId) {
-        setUserId('user-' + new Date().valueOf());
+      setUserId("user-" + new Date().valueOf())
     }
     if (socket) {
-        // Join a room 
-        socket.on('userMsgBroadcast', sendMessage); 
+      // Join a room
+      socket.on("userMsgBroadcast", sendMessage)
     }
     return () => {
-        socket?.off('userMsgBroadcast', sendMessage);
-    };
-}, [socket])
+      socket?.off("userMsgBroadcast", sendMessage)
+    }
+  }, [socket, userId]) // Added userId to dependencies
 
-  // useEffect(() => {
-  //   const ws = new WebSocket(SOCKET_IO_BACKEND_URL)
+  useEffect(() => {
+    // if (!userId) {
+    //   setUserId('user-' + new Date().valueOf());
+    // }
+    console.log("asfsafhere")
+    // if (socket) {
+    // Join a room
+    socket?.on("userMsgBroadcast", handleUserMsgBroadcast)
+    // }
+    return () => {
+      socket?.off("userMsgBroadcast", handleUserMsgBroadcast)
+    }
+  }, [socket, sendMsg, handleUserMsgBroadcast]) // Added handleUserMsgBroadcast to dependencies
 
-  //   ws.onopen = () => {
-  //     console.log("WebSocket connection established")
-  //   }
-
-  //   ws.onmessage = (event) => {
-  //     const message = JSON.parse(event.data)
-  //     setChatList((prev: any) => [...prev, message]);
-  //   }
-
-  //   ws.onerror = (error) => {
-  //     console.error("WebSocket error:", error)
-  //   }
-
-  //   ws.onclose = () => {
-  //     console.log("WebSocket connection closed")
-  //   }
-
-  //   setSocket(ws)
-
-  //   return () => {
-  //     ws.close()
-  //   }
-  // }, [])
+  useEffect(() => {
+    setChatList([...messages])
+  }, [messages])
 
   const sendMessage = (message: ChatMessage) => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.emit('userMsg',JSON.stringify(message))
-      setChatList((prevMessages: any) => [...prevMessages, message])
-    }
+    // if (socket && socket.readyState === WebSocket.OPEN) {
+    console.log("essaf")
+    socket.emit("userMsg", message)
+    // setChatList((prevMessages: any) => [...prevMessages, message])
+    // }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputMessage.trim()) {
-      console.log('message')
-      sendMessage({ type: "text", content: inputMessage, sender: "user" })
+      console.log("message")
+      sendMessage({
+        roomId: roomId,
+        roomName: roomId,
+        data: {
+          message: inputMessage,
+          userId: "132",
+          timestamp: new Date().valueOf(),
+          type: "text",
+        },
+      })
+      setSendMsg({})
       setInputMessage("")
     }
   }
@@ -84,48 +100,72 @@ export default function Chat({ messages }: { messages: Message[] }) {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setIsUploading(true)
       const reader = new FileReader()
       reader.onload = (event) => {
         const content = event.target?.result as string
         const type = file.type.startsWith("image/") ? "image" : file.type === "application/pdf" ? "pdf" : "text"
-        sendMessage({ type, content, sender: "user" })
+        const fileName = file.name 
+        sendMessage({
+          roomId,
+          roomName: roomId,
+          data: {
+            message: content,
+            userId: "123",
+            timestamp: new Date().valueOf(),
+            type,
+            fileName, 
+          },
+        })
+        setIsUploading(false)
       }
       reader.readAsDataURL(file)
     }
   }
-
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-grow mb-4 p-4 border border-neutral-200 rounded-md dark:border-neutral-800">
-        {messages?.map((message, index) => (
+        {chatList?.map((message, index) => (
           <div key={index} className={`mb-2 ${message.sender === "user" ? "text-right" : "text-left"}`}>
             <div
               className={`inline-block p-2 rounded-lg ${message.sender === "user" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
             >
-              {message.type === "text" && <p>{message.content}</p>}
+              {message.type === "text" && <p>{message.message}</p>}
               {message.type === "image" && (
                 <img
-                  src={message.content || "/placeholder.svg"}
+                  src={message.message || "/placeholder.svg"}
                   alt="Uploaded image"
                   className="max-w-full h-auto rounded-lg"
                 />
               )}
               {message.type === "pdf" && (
                 <div>
-                  <p>PDF file received</p>
+                  <p>{message?.fileName || "PDF file"}</p>
+                  <iframe
+                    src={`${message.message}#toolbar=0`}
+                    className="w-full h-64 rounded-lg"
+                    title={message.fileName || "PDF Preview"}
+                  />
                   <a
-                    href={message.content}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 underline"
+                    href={message.message}
+                    download={message.fileName || "document.pdf"}
+                    className="text-blue-500 underline mt-2 inline-block"
                   >
-                    View PDF
+                    Download PDF
                   </a>
                 </div>
               )}
             </div>
           </div>
         ))}
+        {isUploading && (
+          <div className="text-center mt-2">
+            <span className="animate-pulse">Uploading file...</span>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-2">
+              <div className="bg-blue-600 h-2.5 rounded-full w-full animate-[upload_2s_ease-in-out_infinite]"></div>
+            </div>
+          </div>
+        )}
       </ScrollArea>
       <form onSubmit={handleSubmit} className="flex space-x-2">
         <Input
@@ -147,6 +187,13 @@ export default function Chat({ messages }: { messages: Message[] }) {
         />
         <Button type="submit">Send</Button>
       </form>
+      <style jsx>{`
+        @keyframes upload {
+          0% { width: 0% }
+          50% { width: 100% }
+          100% { width: 0% }
+        }
+      `}</style>
     </div>
   )
 }
