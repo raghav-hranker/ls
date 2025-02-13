@@ -145,7 +145,7 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
-      <div className="aspect-video">
+      <div className="md:aspect-video ">
         <video
           ref={videoRef}
           id="video"
