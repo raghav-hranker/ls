@@ -6,9 +6,9 @@ import type React from "react" // Import React
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Enhanced Video Player with Chat",
+  title: "Livestream",
   description:
-    "A video player using Dash.js with speed control, live stream support, and a side chat media file support",
+    "Welcome to the class",
 }
 
 export default function RootLayout({
