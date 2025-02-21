@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from 'react';
 import { LIVESTREAM_LOCAL_URL, LIVESTREAM_BACKEND_URL, SOCKET_IO_LOCAL_URL, SOCKET_IO_BACKEND_URL } from '@/config/BaseConstants';
 import useSocket from '@/lib/hooks/useSocket';
 import LiveCamera from '@/components/LiveCamera';
-import VideoPlayer from '@/components/VideoPlayer';
+// import VideoPlayer from '@/components/VideoPlayer';
 import Chat from '@/components/Chat';
+import HLSVideoPlayer from '@/components/HLSVideoPlayer';
+
 
 
 const ClientPage = () => {
@@ -19,6 +21,7 @@ const ClientPage = () => {
     const [messages, setMessages] = useState<any>([]);
     const [classId, setClassId] = useState<string>('');
     const [role, setRole] = useState<string>('');
+
 
     const searchParams = useSearchParams();
     const { streamUpdate, fileGenerated } = useSocket(SOCKET_IO_BACKEND_URL);
@@ -62,7 +65,7 @@ const ClientPage = () => {
                 // const url = `${LIVESTREAM_BACKEND_URL}/output/${folder1}/bank/${classId}/${classId}.mpd`;
                 // console.log(url, "url");
                 // setSrcUrl(url);
-                setSrcUrl(data.streamPath)
+                setSrcUrl(data.vodPath)
 
             }
             else if (data.status === 'live') {
@@ -79,15 +82,24 @@ const ClientPage = () => {
             }
             console.log(data);
             setRoomData(data);
-            if (data.status === 'live' || data.status === 'recorded') {
-                setMessages(data.messages);
-            }
+            // if (data.status === 'live' || data.status === 'recorded') {
+            setMessages(data.messages);
+            // }
             setLoading(false);
             // }
 
         }
         getRoomData();
     }, [searchParams, streamUpdate, fileGenerated]);
+
+    // useEffect(() => {
+    //     if (streamUpdate === "live" && role === 'teacher') {
+    //         toast.success('You are live now!', {
+    //             duration: 4000,
+    //             position: 'bottom-right',
+    //         })
+    //     }
+    // }, [streamUpdate, role]);
 
     const displayMessages = (currentTime: number) => {
         console.log('called', currentTime);
@@ -106,43 +118,46 @@ const ClientPage = () => {
         setMessages(filteredMessages);
     };
 
-
+    console.log(role, 'role')
     if (roomData?.status === 'pending' && role !== 'teacher') {
         return <div className='pt-4 p-md-6 ' style={{ height: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <h1 className=''>Class will start soon</h1>
         </div>
     }
 
-    if (streamUpdate === "processing") {
+    if (streamUpdate === "processing" || roomData?.status === 'processing') {
         return <div className='pt-4 p-md-6 ' style={{ height: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <h1 className=''>Class has ended, recording will be uploaded shortly, check back soon</h1>
         </div>
     }
 
     return (
-        <div className="flex flex-col lg:flex-row h-screen">
+        <>
+            {/* <Toaster richColors /> */}
+            <div className="flex flex-col lg:flex-row h-screen">
+                {
+                    role === 'teacher'
+                        ? <>
+                            <div className="w-full lg:w-3/4 p-4">
+                                <LiveCamera roomId={roomId} classId={classId} roomData={roomData} messages={messages} />
+                            </div>
+                            <div className="w-full lg:w-1/4 p-4">
+                                <Chat messages={messages} roomId={roomId} />
+                            </div>
+                        </>
+                        :
+                        <>
+                            <div className="w-full lg:w-3/4 p-4">
+                                <HLSVideoPlayer srcUrl={srcUrl} status={roomData?.status} roomId={roomId} streamStatus={streamUpdate} fileGenerated={fileGenerated} />
+                            </div>
+                            <div className="w-full lg:w-1/4 p-4">
+                                <Chat messages={messages} roomId={roomId} />
+                            </div>
+                        </>
+                }
 
-            {
-                role === 'teacher'
-                    ? <>
-                        <div className="w-full lg:w-3/4 p-4">
-                            <LiveCamera roomId={roomId} classId={classId} roomData={roomData} messages={messages} />
-                        </div>
-                        <div className="w-full lg:w-1/4 p-4">
-                            <Chat messages={messages} roomId={roomId} />
-                        </div>
-                    </>
-                    :
-                    <>
-                        <div className="w-full lg:w-3/4 p-4">
-                            <VideoPlayer srcUrl={srcUrl} status={roomData?.status} roomId={roomId} streamStatus={streamUpdate} fileGenerated={fileGenerated} />
-                        </div>
-                        <div className="w-full lg:w-1/4 p-4">
-                            <Chat messages={messages} roomId={roomId}/>
-                        </div>
-                    </>
-            }
-        </div>
+            </div>
+        </>
     );
 }
 

@@ -3,7 +3,7 @@ export default interface Message {
     userId: string;
     message: string;
     timestamp: number;
-    type: "text" | "image" | "pdf";
+    type: "text" | "image" | "pdf" | "audio";
     content: string;
     sender: "user" | "other";
     fileName: string;

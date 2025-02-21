@@ -6,7 +6,7 @@ import { SOCKET_IO_BACKEND_URL } from "../config/BaseConstants"
 import type Room from "../models/RoomData"
 import type Message from "../models/Message"
 import { Mic, MicOff, Maximize, Minimize, RepeatIcon as Record, StopCircle } from "lucide-react"
-
+import { v4 as uuidv4 } from 'uuid';
 interface LiveCameraProps {
   roomId: string
   classId: string
@@ -27,6 +27,7 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
   const audioContextRef = useRef<AudioContext | null>(null)
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const gainNodeRef = useRef<GainNode | null>(null)
+  const [streamId, ] = useState<string>(uuidv4())
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
 
@@ -82,11 +83,13 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
         })
         mediaRecorderRef.current.ondataavailable = async (ev) => {
           console.log("Binary Stream Available", ev.data)
+          
           socket.emit("binarystream", {
             data: ev.data,
             courseId: roomData.courseId,
             clientId: roomData.clientId,
             classId: roomData.classId,
+            streamId,
           })
         }
 
