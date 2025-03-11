@@ -13,6 +13,7 @@ import LiveCamera from "@/components/LiveCamera";
 import VideoPlayer from "@/components/VideoPlayer";
 import Chat from "@/components/Chat";
 import HLSVideoPlayer from "@/components/HLSVideoPlayer";
+import { Toaster, toast } from "sonner"; 
 
 const ClientPage = () => {
   const [roomId, setRoomId] = useState<string>("");
@@ -23,10 +24,10 @@ const ClientPage = () => {
   const [messages, setMessages] = useState<any>([]);
   const [classId, setClassId] = useState<string>("");
   const [role, setRole] = useState<string>("");
+  const previousStreamUpdateRef = useRef<string>("");
 
   const searchParams = useSearchParams();
-  const { socket, streamUpdate, fileGenerated, isConnected, reconnect } =
-    useSocket(SOCKET_IO_BACKEND_URL);
+  const { socket, streamUpdate, fileGenerated} = useSocket(SOCKET_IO_BACKEND_URL);
   console.log(streamUpdate, "streamStatus index.tsx");
   console.log(fileGenerated, "fileGenerated index.tsx");
 
@@ -91,14 +92,27 @@ const ClientPage = () => {
     getRoomData();
   }, [searchParams, streamUpdate, fileGenerated]);
 
-  // useEffect(() => {
-  //     if (streamUpdate === "live" && role === 'teacher') {
-  //         toast.success('You are live now!', {
-  //             duration: 4000,
-  //             position: 'bottom-right',
-  //         })
-  //     }
-  // }, [streamUpdate, role]);
+  useEffect(() => {
+    if (
+      streamUpdate === "live" && 
+      previousStreamUpdateRef.current !== "live"
+    ) {
+      if (role === 'teacher') {
+        toast.success('You are live now!', {
+          duration: 6000,
+          position: 'bottom-right',
+        });
+      } else {
+        toast.info('Class has started - you are now watching live!', {
+          duration: 6000,
+          position: 'bottom-right',
+        });
+      }
+    }
+    
+    // Store current status for next comparison
+    previousStreamUpdateRef.current = streamUpdate;
+  }, [streamUpdate, role]);
 
   const displayMessages = (currentTime: number) => {
     console.log("called", currentTime);
@@ -156,7 +170,7 @@ const ClientPage = () => {
 
   return (
     <>
-      {/* <Toaster richColors /> */}
+      <Toaster richColors />
       <div className="flex flex-col lg:flex-row h-screen">
         {role === "teacher" ? (
           <>
@@ -181,8 +195,6 @@ const ClientPage = () => {
                 roomId={roomId}
                 streamStatus={streamUpdate}
                 fileGenerated={fileGenerated}
-                isConnected={isConnected}
-                onReconnect={reconnect}
                 autoplay={true}
               />
             </div>
