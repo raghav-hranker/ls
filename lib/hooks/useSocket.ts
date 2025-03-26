@@ -1,19 +1,19 @@
 import io from "socket.io-client";
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 
 const useSocket = (socketUrl: string) => {
     const [socket, setSocket] = useState<any>(null);
     const [streamUpdate, setStreamUpdate] = useState<string>('');
     const [fileGenerated, setFileGenerated] = useState<boolean>(false);
     const [isConnected, setIsConnected] = useState<boolean>(false);
-    const router = useRouter();
+    const socketRef = useRef<any>(null);
     const roomIdRef = useRef<string | null>(null);
-    const searchParams = useSearchParams();
+
+    const params = useParams();
+    const roomId = params?.roomId as string;
 
     useEffect(() => {
-        if (!router) return;
-
         const socketInstance = io(socketUrl, {
             transports: ["websocket"],
             reconnection: true,          
@@ -24,6 +24,7 @@ const useSocket = (socketUrl: string) => {
             autoConnect: true            
         });
 
+        socketRef.current = socketInstance;
         setSocket(socketInstance);
 
         socketInstance.on('connect', () => {
@@ -61,54 +62,58 @@ const useSocket = (socketUrl: string) => {
             socketInstance.disconnect();
             socketInstance.removeAllListeners();
         };
-    }, [router, socketUrl]);
+    }, [socketUrl]); 
 
     useEffect(() => {
-        if (!socket || !isConnected) return;
+        if (!socketRef.current || !isConnected || !roomId) return;
 
-        const roomId = searchParams.get('roomId');
-        roomIdRef.current = roomId; 
+        console.log('Setting up room with ID:', roomId);
+        roomIdRef.current = roomId;
+        
+        socketRef.current.emit('joinRoom', roomId);
+        console.log('Joined room:', roomId);
+        
+        const handleStreamUpdate = (data: any) => {
+            console.log('streamUpdate:', data);
+            setStreamUpdate(data);
+        };
 
-        if (roomId) {
-            socket.emit('joinRoom', roomId);
-            console.log('Joined room:', roomId);
-            
-            socket.on('streamUpdate', (data: any) => {
-                console.log('streamUpdate:', data);
-                setStreamUpdate(data);
-            });
-
-            socket.on('fileGenerated', (data: any) => {
-                console.log('fileGenerated:', data);
-                setFileGenerated(data);  
-            });
-        }
-
-        const pingInterval = setInterval(() => {
-            if (socket && isConnected) {
-                socket.emit('ping');
-                console.log('Ping sent to keep connection alive');
-            }
-        }, 30000); 
+        const handleFileGenerated = (data: any) => {
+            console.log('fileGenerated:', data);
+            setFileGenerated(data);
+        };
+        
+        socketRef.current.on('streamUpdate', handleStreamUpdate);
+        socketRef.current.on('fileGenerated', handleFileGenerated);
 
         return () => {
-            clearInterval(pingInterval);
-            if (socket) {
-                socket.off('streamUpdate');
-                socket.off('fileGenerated');
+            if (socketRef.current) {
+                socketRef.current.off('streamUpdate', handleStreamUpdate);
+                socketRef.current.off('fileGenerated', handleFileGenerated);
             }
         };
-    }, [socket, isConnected, searchParams]);
+    }, [isConnected, roomId]); 
+
+    useEffect(() => {
+        if (!socketRef.current || !isConnected) return;
+
+        const pingInterval = setInterval(() => {
+            socketRef.current.emit('ping');
+            console.log('Ping sent to keep connection alive');
+        }, 30000);
+
+        return () => clearInterval(pingInterval);
+    }, [isConnected]);
 
     const reconnect = () => {
-        if (socket) {
+        if (socketRef.current) {
             console.log('Manually reconnecting socket...');
-            socket.connect();
+            socketRef.current.connect();
         }
     };
 
     return { 
-        socket, 
+        socket: socketRef.current, 
         streamUpdate, 
         fileGenerated, 
         isConnected,

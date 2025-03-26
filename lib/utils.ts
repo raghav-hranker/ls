@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import dayjs from "dayjs"
+import { createHmac } from 'crypto';
+
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -36,4 +38,32 @@ export  function getFormattedDate (value: any, dateFormat: string) {
   // x	1410715640579	Unix ms timestamp
 
   return dayjs(value).format(dateFormat);
+}
+
+export function verifyToken(token: string) {
+  const verifySignature = (token: string, secret: string): boolean => {
+    try {
+      const [headerB64, payloadB64, signature] = token.split('.');
+      
+      // Create the expected signature
+      const hmac = createHmac('sha256', secret);
+      hmac.update(`${headerB64}.${payloadB64}`);
+      const expectedSignature = hmac
+        .digest('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+      
+      return expectedSignature === signature;
+    } catch (error) {
+      console.error('Signature verification error:', error);
+      return false;
+    }
+  };
+  
+  const JWT_SECRET = process.env.JWT_SECRET || 'parikshaSecretKey@12';
+  
+  if (!verifySignature(token, JWT_SECRET)) {
+    return { valid: false, error: 'Invalid token signature' };
+  }
 }

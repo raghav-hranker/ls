@@ -99,6 +99,7 @@ const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
       hls.loadSource(srcUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        // video.muted = true
         video.play().catch((error) => {
           console.warn("Autoplay failed:", error);
           // Optionally show a play button or UI indication that autoplay was blocked
@@ -202,7 +203,7 @@ const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
 
     video.playbackRate = rate;
     setPlaybackRate(rate);
-  };
+  }; 
 
   const handleQualityChange = (qualityLabel: string) => {
     const hls = hlsRef.current;

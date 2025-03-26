@@ -10,11 +10,12 @@ import { v4 as uuidv4 } from 'uuid';
 interface LiveCameraProps {
   roomId: string
   classId: string
+  clientId: string
   roomData: Room
   messages: Message[]
 }
 
-export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraProps) => {
+export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: LiveCameraProps) => {
   const [recording, setRecording] = useState(false)
   const { socket } = useSocket(SOCKET_IO_BACKEND_URL)
   const [showControls, setShowControls] = useState(false)
@@ -86,9 +87,9 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
           
           socket.emit("binarystream", {
             data: ev.data,
-            courseId: roomData.courseId,
-            clientId: roomData.clientId,
-            classId: roomData.classId,
+            // courseId: roomData.courseId,
+            clientId: clientId,
+            classId: roomId,
             streamId,
           })
         }
@@ -113,7 +114,7 @@ export const LiveCamera = ({ roomId, classId, roomData, messages }: LiveCameraPr
       }
 
       socket.emit("stopRecording", {
-        courseId: roomData.courseId,
+        // courseId: roomData.courseId,
         clientId: roomData.clientId,
         classId: roomData.classId,
       })

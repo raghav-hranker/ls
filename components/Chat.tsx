@@ -198,7 +198,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
 
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col w-full">
       <ScrollArea className="flex-grow mb-4 p-4 border border-neutral-200 rounded-md dark:border-neutral-800">
         {chatList?.map((message, index) => (
           <div
