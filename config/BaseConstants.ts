@@ -15,11 +15,11 @@ export const IS_SAME_DOMAIN_LOGIN = 0;
 
 export const SOCKET_IO_LOCAL_URL = "http://localhost:3001";
 // export const SOCKET_IO_BACKEND_URL = "http://ec2-13-60-208-181.eu-north-1.compute.amazonaws.com";
-export const SOCKET_IO_BACKEND_URL = "https://ls2.multiplayerbackend.tech";
+export const SOCKET_IO_BACKEND_URL = "https://ls.multistreaming.site";
 // export const SOCKET_IO_BACKEND_URL = "https://ls-socket-2-1212174213.eu-north-1.elb.amazonaws.com";
 
 // export const SOCKET_IO_BACKEND_URL = "https://stream.hranker.com:3001";
-export const LIVESTREAM_BACKEND_URL = "https://ls.multiplayerbackend.tech"
+export const LIVESTREAM_BACKEND_URL = "https://www.multistreaming.site"
 // export const LIVESTREAM_BACKEND_URL = "https://ls2.multiplayerbackend.tech"
 // export const LIVESTREAM_BACKEND_URL = "https://ls-socket-2-1212174213.eu-north-1.elb.amazonaws.com"
 export const LIVESTREAM_LOCAL_URL = "http://localhost:3001"
@@ -39,12 +39,12 @@ export const MOBILE_HEADER_TOP = '66px';
 export const LOGO_URL = '/next_images/logo.png';
 export const LOGO_URL_1 = '/next_images/logo.png';
 export const LOGO_HEIGHT = {
-    laptop: 60,
-    mobile: 60
+    laptop: 90,
+    mobile: 90
 };
 export const LOGO_WIDTH = {
-    laptop: 60,
-    mobile: 60,
+    laptop: 90,
+    mobile: 90,
     marginLeft: 10,
 };
 export const LOGO_HEIGHT_1 = {
