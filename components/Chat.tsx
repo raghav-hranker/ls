@@ -19,6 +19,7 @@ interface ChatMessage {
   data: {
     message: string
     userId?: string
+    userName?: string
     timestamp?: number
     type?: "text" | "image" | "pdf" | "audio"
     fileName?: string
@@ -59,6 +60,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
   useEffect(() => {
     if (socket) {
       socket.on("userMsgBroadcast", handleUserMsgBroadcast)
+  
     }
     return () => {
       socket?.off("userMsgBroadcast", handleUserMsgBroadcast)
@@ -84,6 +86,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
         data: {
           message: inputMessage,
           userId: userId,
+          userName: userId,
           timestamp: new Date().valueOf(),
           type: "text",
         },
@@ -108,6 +111,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
           data: {
             message: content,
             userId: userId,
+            userName: userId,
             timestamp: new Date().valueOf(),
             type,
             fileName,
@@ -197,6 +201,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
 
 
 
+
   return (
     <div className="flex flex-col h-full w-full">
       <ScrollArea className="flex-grow mb-4 p-4 border border-neutral-200 rounded-md dark:border-neutral-800">
@@ -214,11 +219,18 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
               >
                 {message.type === "text" && <p className="break-words">{message.message}</p>}
                 {message.type === "image" && (
-                  <img
-                    src={message.message || "/placeholder.svg"}
-                    alt="Uploaded image"
-                    className="max-w-full h-auto rounded-lg"
-                  />
+                      <img
+                      src={
+                          message.message.startsWith('data:') 
+                        ? message.message 
+                        : message.message.startsWith('https')
+                        ? message.message
+                        :`data:image/jpeg;base64,${message.message}`
+                        }
+                      alt="User uploaded image"
+                      className="max-w-full h-auto rounded-lg"
+                    />
+                
                 )}
                 {message.type === "pdf" && (
                   <div>
@@ -306,6 +318,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
                       data: {
                         message: base64Audio,
                         userId: userId,
+                        userName: userId,
                         timestamp: new Date().valueOf(),
                         type: "audio",
                         fileName: "voice-message.webm"

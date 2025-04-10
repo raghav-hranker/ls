@@ -314,7 +314,7 @@ const ClientPage = () => {
                 autoplay={true}
               />
             </div>
-            <div className="w-full lg:w-1/4 p-4">
+            <div className="w-full lg:w-1/4 p-4 overflow-y-auto h-screen">
               <Chat messages={messages} roomId={roomId} />
               {/* <div className="mt-2 pb-5">
                 <ClassRating classId={classId} className="" />
