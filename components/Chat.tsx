@@ -73,6 +73,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
 
   const sendMessage = (message: ChatMessage) => {
     console.log("Sending message")
+    message.data.userName= 'teacher'
     socket.emit("userMsg", message)
   }
 
@@ -268,7 +269,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
                   </>
                 ) : (
                   <>
-                    <span className="truncate">User {message.userId}</span>
+                    <span className="truncate">User {message.userName}</span>
                     <span className="ml-1">{getFormattedDate(message.timestamp, "HH:mm  a")}</span>
                   </>
                 )}
