@@ -5,7 +5,7 @@ import useSocket from '../lib/hooks/useSocket';
 import { SOCKET_IO_BACKEND_URL } from '../config/BaseConstants';
 import type Room from '../models/RoomData';
 import type Message from '../models/Message';
-import { Mic, MicOff, Maximize, Minimize, RepeatIcon as Record, StopCircle } from 'lucide-react';
+import { Mic, MicOff, Maximize, Minimize, RepeatIcon as Record, StopCircle, FlipHorizontal } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 interface LiveCameraProps {
   roomId: string;
@@ -23,6 +23,7 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
   const [showModal, setShowModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isFrontCamera, setIsFrontCamera] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -32,37 +33,62 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
-  useEffect(() => {
-    const startInput = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-        streamRef.current = stream;
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = new MediaStream(stream.getVideoTracks());
-        }
-
-        // Set up audio context
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        sourceNodeRef.current = audioContextRef.current.createMediaStreamSource(stream);
-        gainNodeRef.current = audioContextRef.current.createGain();
-        sourceNodeRef.current.connect(gainNodeRef.current);
-
-        // Don't connect to destination to avoid echo
-        // gainNodeRef.current.connect(audioContextRef.current.destination);
-
-        // Initial mute state
-        if (gainNodeRef.current) {
-          gainNodeRef.current.gain.setValueAtTime(isMuted ? 0 : 1, audioContextRef.current.currentTime);
-        }
-      } catch (err) {
-        console.error('Error accessing media devices.', err);
+  const startCamera = async (useFrontCamera = true) => {
+    try {
+      // Stop any existing tracks
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
-    };
-    startInput();
+
+      // Get new stream with specified camera
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: useFrontCamera ? 'user' : 'environment'
+        },
+        audio: true,
+      });
+      
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = new MediaStream(stream.getVideoTracks());
+      }
+
+      // Set up audio context if it doesn't exist
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      // Re-create source node with new stream
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.disconnect();
+      }
+      
+      sourceNodeRef.current = audioContextRef.current.createMediaStreamSource(stream);
+      
+      if (!gainNodeRef.current) {
+        gainNodeRef.current = audioContextRef.current.createGain();
+      }
+      
+      sourceNodeRef.current.connect(gainNodeRef.current);
+
+      // Update mute state
+      if (gainNodeRef.current && audioContextRef.current) {
+        gainNodeRef.current.gain.setValueAtTime(isMuted ? 0 : 1, audioContextRef.current.currentTime);
+      }
+
+      // If we were recording, restart the recorder with the new stream
+      if (recording && mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+        startRecording(stream);
+      }
+    } catch (err) {
+      console.error('Error accessing media devices.', err);
+    }
+  };
+
+  useEffect(() => {
+    startCamera(isFrontCamera);
 
     return () => {
       if (audioContextRef.current) {
@@ -72,32 +98,36 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isMuted]); // Added isMuted to dependencies
+  }, [isFrontCamera]); // Added isFrontCamera to dependencies
+
+  const startRecording = (stream: MediaStream) => {
+    if (socket) {
+      socket.emit('joinRoom', roomId);
+    }
+
+    mediaRecorderRef.current = new MediaRecorder(stream, {
+      audioBitsPerSecond: 128000,
+      videoBitsPerSecond: 2000000,
+    });
+    
+    mediaRecorderRef.current.ondataavailable = async ev => {
+      console.log('Binary Stream Available', ev.data);
+
+      socket.emit('binarystream', {
+        data: ev.data,
+        clientId: clientId,
+        classId: roomId,
+        streamId,
+      });
+    };
+
+    mediaRecorderRef.current.start(1000);
+  };
 
   const handleStartRecording = () => {
     if (streamRef.current) {
-      if (socket) {
-        socket.emit('joinRoom', roomId);
-      }
-
       if (!recording) {
-        mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
-          audioBitsPerSecond: 128000,
-          videoBitsPerSecond: 2000000,
-        });
-        mediaRecorderRef.current.ondataavailable = async ev => {
-          console.log('Binary Stream Available', ev.data);
-
-          socket.emit('binarystream', {
-            data: ev.data,
-            // courseId: roomData.courseId,
-            clientId: clientId,
-            classId: roomId,
-            streamId,
-          });
-        };
-
-        mediaRecorderRef.current.start(1000);
+        startRecording(streamRef.current);
         setRecording(true);
       } else {
         handleStopRecording();
@@ -117,7 +147,6 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
       };
 
       socket.emit('stopRecording', {
-        // courseId: roomData.courseId,
         clientId: roomData.clientId,
         classId: roomData.classId,
       });
@@ -152,6 +181,10 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
     }
   };
 
+  const toggleCamera = () => {
+    setIsFrontCamera(!isFrontCamera);
+  };
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -163,7 +196,7 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full  bg-gray-900 rounded-lg overflow-hidden" onMouseEnter={() => setShowControls(true)} onMouseLeave={() => setShowControls(false)}>
+    <div ref={containerRef} className="relative w-full bg-gray-900 rounded-lg overflow-hidden" onMouseEnter={() => setShowControls(true)} onMouseLeave={() => setShowControls(false)}>
       <div className="md:aspect-video">
         <video
           ref={videoRef}
@@ -186,12 +219,13 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
                 {recording ? <StopCircle size={20} /> : <Record size={20} />}
                 <span>{recording ? 'Stop Recording' : 'Start Recording'}</span>
               </button>
-              {/* <button
-                onClick={toggleMute}
+              <button
+                onClick={toggleCamera}
                 className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white transition-colors duration-300"
+                title={isFrontCamera ? "Switch to rear camera" : "Switch to front camera"}
               >
-                {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
-              </button> */}
+                <FlipHorizontal size={20} />
+              </button>
             </div>
             <button onClick={handleFullscreen} className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white transition-colors duration-300">
               {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
