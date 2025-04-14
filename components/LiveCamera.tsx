@@ -51,7 +51,9 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
       streamRef.current = stream;
 
       if (videoRef.current) {
-        videoRef.current.srcObject = new MediaStream(stream.getVideoTracks());
+
+        videoRef.current.srcObject = stream;
+        videoRef.current.muted = true;
       }
 
       // Set up audio context if it doesn't exist
@@ -102,6 +104,7 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
 
       if (!recording) {
         mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
+          mimeType: 'video/webm;codecs=vp9,opus', 
           audioBitsPerSecond: 128000,
           videoBitsPerSecond: 2000000,
         });
@@ -168,6 +171,15 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
       const newMuteState = !isMuted;
       gainNodeRef.current.gain.setValueAtTime(newMuteState ? 0 : 1, audioContextRef.current.currentTime);
       setIsMuted(newMuteState);
+      
+      // Also update the MediaRecorder if it's active
+      if (recording && mediaRecorderRef.current) {
+        // We need to stop and restart recording to apply the new mute state
+        const tracks = streamRef.current?.getAudioTracks() || [];
+        tracks.forEach(track => {
+          track.enabled = !newMuteState;
+        });
+      }
     }
   };
 
@@ -225,6 +237,7 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
               >
                 <FlipHorizontal size={20} />
               </button>
+              
             </div>
             <button onClick={handleFullscreen} className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white transition-colors duration-300">
               {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
