@@ -268,7 +268,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
                   </>
                 ) : (
                   <>
-                    <span className="truncate">User {message.userId?.split('-')[1]}</span>
+                    <span className="truncate">User {message.userId}</span>
                     <span className="ml-1">{getFormattedDate(message.timestamp, "HH:mm  a")}</span>
                   </>
                 )}
