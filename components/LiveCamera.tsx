@@ -76,12 +76,6 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
       if (gainNodeRef.current && audioContextRef.current) {
         gainNodeRef.current.gain.setValueAtTime(isMuted ? 0 : 1, audioContextRef.current.currentTime);
       }
-
-      // If we were recording, restart the recorder with the new stream
-      if (recording && mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop();
-        startRecording(stream);
-      }
     } catch (err) {
       console.error('Error accessing media devices.', err);
     }
@@ -100,34 +94,30 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
     };
   }, [isFrontCamera]); // Added isFrontCamera to dependencies
 
-  const startRecording = (stream: MediaStream) => {
-    if (socket) {
-      socket.emit('joinRoom', roomId);
-    }
-
-    mediaRecorderRef.current = new MediaRecorder(stream, {
-      audioBitsPerSecond: 128000,
-      videoBitsPerSecond: 2000000,
-    });
-    
-    mediaRecorderRef.current.ondataavailable = async ev => {
-      console.log('Binary Stream Available', ev.data);
-
-      socket.emit('binarystream', {
-        data: ev.data,
-        clientId: clientId,
-        classId: roomId,
-        streamId,
-      });
-    };
-
-    mediaRecorderRef.current.start(1000);
-  };
-
   const handleStartRecording = () => {
     if (streamRef.current) {
+      if (socket) {
+        socket.emit('joinRoom', roomId);
+      }
+
       if (!recording) {
-        startRecording(streamRef.current);
+        mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
+          audioBitsPerSecond: 128000,
+          videoBitsPerSecond: 2000000,
+        });
+        
+        mediaRecorderRef.current.ondataavailable = async ev => {
+          console.log('Binary Stream Available', ev.data);
+
+          socket.emit('binarystream', {
+            data: ev.data,
+            clientId: clientId,
+            classId: roomId,
+            streamId,
+          });
+        };
+
+        mediaRecorderRef.current.start(1000);
         setRecording(true);
       } else {
         handleStopRecording();
@@ -182,7 +172,9 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
   };
 
   const toggleCamera = () => {
-    setIsFrontCamera(!isFrontCamera);
+    if (!recording) {
+      setIsFrontCamera(!isFrontCamera);
+    }
   };
 
   useEffect(() => {
@@ -221,8 +213,15 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
               </button>
               <button
                 onClick={toggleCamera}
-                className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white transition-colors duration-300"
-                title={isFrontCamera ? "Switch to rear camera" : "Switch to front camera"}
+                disabled={recording}
+                className={`p-2 rounded-full ${
+                  recording 
+                    ? 'bg-gray-500 cursor-not-allowed' 
+                    : 'bg-gray-700 hover:bg-gray-600'
+                } text-white transition-colors duration-300`}
+                title={recording 
+                  ? "Cannot switch camera while recording" 
+                  : (isFrontCamera ? "Switch to rear camera" : "Switch to front camera")}
               >
                 <FlipHorizontal size={20} />
               </button>
