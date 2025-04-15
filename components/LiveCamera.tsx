@@ -13,9 +13,10 @@ interface LiveCameraProps {
   clientId: string;
   roomData: Room;
   messages: Message[];
+  onStartRecording?: () => void;
 }
 
-export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: LiveCameraProps) => {
+export const LiveCamera = ({ roomId, classId, roomData, messages, clientId, onStartRecording }: LiveCameraProps) => {
   const [recording, setRecording] = useState(false);
   const { socket } = useSocket(SOCKET_IO_BACKEND_URL);
   const [showControls, setShowControls] = useState(false);
@@ -98,6 +99,9 @@ export const LiveCamera = ({ roomId, classId, roomData, messages, clientId }: Li
 
   const handleStartRecording = () => {
     if (streamRef.current) {
+      if (onStartRecording) {
+        onStartRecording();
+      }
       if (socket) {
         socket.emit('joinRoom', roomId);
       }

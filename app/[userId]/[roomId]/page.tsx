@@ -1,5 +1,5 @@
 "use client";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   LIVESTREAM_LOCAL_URL,
@@ -13,10 +13,10 @@ import VideoPlayer from "@/components/VideoPlayer";
 import Chat from "@/components/Chat";
 import HLSVideoPlayer from "@/components/HLSVideoPlayer";
 import { Toaster, toast } from "sonner";
-import { useParams } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 import { Rating } from "@/components/Rating";
 import ClassRating from "@/components/ClassRating";
+import OBSInstructions from "@/components/OBSInstructions";
 
 interface DecodedToken {
   user_id: string | null;
@@ -29,27 +29,24 @@ const ClientPage = () => {
   const [roomId, setRoomId] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [roomData, setRoomData] = useState<any>(null);
-  const [protocol, setProtocol] = useState<string>("");
   const [srcUrl, setSrcUrl] = useState<string>("");
   const [messages, setMessages] = useState<any[]>([]);
   const [classId, setClassId] = useState<string>("");
   const [clientId, setClientId] = useState<string>("");
   const [role, setRole] = useState<string>("");
   const [creatingRoom, setCreatingRoom] = useState<boolean>(false);
+  const [obsSelected, setObsSelected] = useState<boolean>(false);
+  const [cameraStreamingStarted, setCameraStreamingStarted] = useState<boolean>(false);
+
   const previousStreamUpdateRef = useRef<string>("");
   const params = useParams();
   const router = useRouter();
-
   const searchParams = useSearchParams();
   const { socket, streamUpdate, fileGenerated } = useSocket(
     SOCKET_IO_BACKEND_URL
   );
-  console.log(streamUpdate, "streamStatus index.tsx");
-  console.log(fileGenerated, "fileGenerated index.tsx");
 
   useEffect(() => {
-    console.log(searchParams.toString());
-
     const roomIdParam = params.roomId as string;
     const clientIdParam = params.userId as string;
     let roleParam = searchParams.get("role");
@@ -57,11 +54,8 @@ const ClientPage = () => {
 
     if (token) {
       const decoded = jwtDecode<DecodedToken>(token);
-      console.log(decoded, "decoded");
       roleParam = decoded.role;
     }
-
-    console.log(roleParam, roomIdParam, "params");
 
     if (roomIdParam && typeof roomIdParam === "string") {
       setClassId(roomIdParam);
@@ -78,11 +72,9 @@ const ClientPage = () => {
 
     const getRoomData = async () => {
       try {
-        console.log("fetching");
         const response = await fetch(
           `${LIVESTREAM_BACKEND_URL}/api/v1/room/${roomIdParam}`
         );
-        console.log(response, "response");
 
         if (!response.ok) {
           if (response.status === 404) {
@@ -107,7 +99,7 @@ const ClientPage = () => {
         } else if (data.status === "recorded") {
           setSrcUrl(data.vodPath || "");
         }
-        console.log(data);
+
         setRoomData(data);
         if (
           data.status === "live" ||
@@ -152,11 +144,7 @@ const ClientPage = () => {
         position: "bottom-right",
       });
 
-      const newRoomData = {
-        ...data.room,
-      };
-
-      return newRoomData;
+      return { ...data.room };
     } catch (error) {
       console.error("Error creating room:", error);
       toast.error("Failed to create room. Please try again.");
@@ -178,7 +166,6 @@ const ClientPage = () => {
         });
       }
     }
-
     previousStreamUpdateRef.current = streamUpdate || "";
   }, [streamUpdate, role]);
 
@@ -187,20 +174,14 @@ const ClientPage = () => {
       return;
     }
 
-    console.log("called", currentTime);
-    console.log(roomData.messages);
-
     const normalizedMessages = roomData.messages.map((msg: any) => ({
       ...msg,
       relativeTime: (msg.timestamp - (roomData.startTimestamp || 0)) / 1000,
     }));
 
-    console.log(normalizedMessages);
-
     const filteredMessages = normalizedMessages.filter(
       (msg: any) => msg.relativeTime <= currentTime
     );
-    console.log(filteredMessages);
     setMessages(filteredMessages);
   };
 
@@ -222,8 +203,7 @@ const ClientPage = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">Creating Your Room</h2>
           <p className="text-gray-600 mb-4">
-            The room doesn't exist yet, so we're setting it up for you. This
-            will only take a moment...
+            The room doesn't exist yet, so we're setting it up for you. This will only take a moment...
           </p>
           <div className="w-full bg-gray-200 rounded-full h-2.5">
             <div className="bg-blue-500 h-2.5 rounded-full animate-pulse w-full"></div>
@@ -253,10 +233,8 @@ const ClientPage = () => {
           </svg>
           <h2 className="text-2xl font-bold mb-2">Class Will Start Soon</h2>
           <p className="text-gray-600 mb-6">
-            The teacher hasn't started the class yet. Please wait for the
-            teacher to go live.
+            The teacher hasn't started the class yet. Please wait for the teacher to go live.
           </p>
-
           <p className="text-sm text-gray-500">
             This page will automatically update when the class begins.
           </p>
@@ -271,32 +249,66 @@ const ClientPage = () => {
         <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
           <h2 className="text-2xl font-bold mb-2">Processing Recording</h2>
           <p className="text-gray-600 mb-4">
-            The class has ended and the recording is now being processed. It
-            will be available shortly.
+            The class has ended and the recording is now being processed. It will be available shortly.
           </p>
           <p className="text-sm text-gray-500">
-            Please check back soon. This page will refresh automatically when
-            the recording is ready.
+            Please check back soon. This page will refresh automatically when the recording is ready.
           </p>
         </div>
       </div>
     );
   }
+  console.log(streamUpdate, 'su')
 
   return (
     <>
       <Toaster richColors />
+      
       <div className="flex flex-col lg:flex-row min-h-screen">
         {role === "teacher" && roomData?.status !== "ended" ? (
           <>
             <div className="w-full lg:w-3/4 p-4">
-              <LiveCamera
-                roomId={roomId}
-                classId={classId}
-                clientId={clientId}
-                roomData={roomData}
-                messages={messages}
-              />
+              {obsSelected ? (
+                roomData.status === "live" ? (
+                  <HLSVideoPlayer
+                    srcUrl={srcUrl}
+                    status={roomData?.status}
+                    roomId={roomId}
+                    streamStatus={streamUpdate}
+                    fileGenerated={fileGenerated}
+                    autoplay={true}
+                  />
+                ) : (
+                  
+                  <OBSInstructions 
+                    streamUpdate={streamUpdate}
+                    clientId={clientId}
+                    roomId={roomId}
+                    roomData={roomData}
+                  />
+                )
+              ) : (
+                <LiveCamera
+                  roomId={roomId}
+                  classId={classId}
+                  clientId={clientId}
+                  roomData={roomData}
+                  messages={messages}
+                  onStartRecording={() => setCameraStreamingStarted(true)}
+                />
+              )}
+              {role === "teacher" && roomData?.status === "pending" && !cameraStreamingStarted &&(
+              <div className="p-4">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={obsSelected}
+                    onChange={(e) => setObsSelected(e.target.checked)}
+                  />
+                  <span>Stream using OBS Studio</span>
+                </label>
+              </div>
+            )}
             </div>
             <div className="w-full lg:w-1/4 p-4">
               <Chat messages={messages} roomId={roomId} />
