@@ -71,6 +71,8 @@ const useSocket = (socketUrl: string) => {
         roomIdRef.current = roomId;
         
         socketRef.current.emit('joinRoom', roomId);
+        // socketRef.current.emit('messageHistory', roomId);
+
         console.log('Joined room:', roomId);
         
         const handleStreamUpdate = (data: any) => {

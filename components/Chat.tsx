@@ -292,7 +292,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
         </div>
       )}
       <form onSubmit={handleSubmit} className="flex space-x-2 w-full">
-        {
+        {/* {
           mediaRecorderRef.current && (
             <audio
 
@@ -354,7 +354,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
               ))}
             </div>
           </div>
-        ) : (
+        ) : ( */}
           <Input
             type="text"
             value={inputMessage}
@@ -362,7 +362,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
             placeholder="Type your message..."
             className="flex-grow w-full flex-1"
           />
-        )}
+        {/* )} */}
         <div className={`${audioBlob ? 'hidden' : 'flex space-x-1 '}`}>
           <Button
             type="button"
@@ -375,7 +375,7 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
           <Button type="button" onClick={() => fileInputRef.current?.click()} variant="outline" size="icon">
             <Paperclip className="h-4 w-4" />
           </Button>
-          {inputMessage?.length == 0 &&
+          {/* {inputMessage?.length == 0 &&
             (
               <Button
                 type="button"
@@ -387,14 +387,14 @@ export default function Chat({ messages, roomId }: { messages: Message[]; roomId
                 {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </Button>
             )
-          }
+          } */}
         </div>
 
         <input
           type="file"
           ref={fileInputRef}
           onChange={handleFileUpload}
-          accept="image/*,application/pdf"
+          accept="image/*"
           style={{ display: "none" }}
         />
         {
